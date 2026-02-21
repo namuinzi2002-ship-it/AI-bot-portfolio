@@ -1,0 +1,419 @@
+(() => {
+  // =========================
+  // CONFIG (edit this)
+  // =========================
+  const BOT = {
+    brand: "Sonrisa Nova",
+    headerTitle: "Hi there! 👋",
+    headerSubtitle: "Dental reception (demo)",
+    greeting:
+      "Hola 👋 Soy la asistente de Sonrisa Nova. ¿Quieres pedir cita, ver precios o es una urgencia?",
+    primary: "#1E88E5",            // launcher + accents (Tidio-ish blue)
+    mode: "ai",                   // "rules" or "ai"
+    aiEndpoint: "/api/chat",
+    leadEndpoint: "/api/lead",
+    poweredBy: "Sonrisa Nova AI"
+  };
+
+  // =========================
+  // Styles (Tidio-ish)
+  // =========================
+  const style = document.createElement("style");
+  style.textContent = `
+  :root { --sa-blue:${BOT.primary}; }
+
+  .sa-launcher{
+    position:fixed; right:22px; bottom:22px;
+    width:56px; height:56px; border-radius:999px; border:0;
+    cursor:pointer; z-index:999999;
+    background:var(--sa-blue);
+    box-shadow: 0 14px 30px rgba(0,0,0,.25);
+    display:grid; place-items:center;
+  }
+  .sa-launcher:active{ transform: translateY(1px); }
+  .sa-launcher svg{ width:26px; height:26px; fill:#fff; }
+
+  .sa-panel{
+    position:fixed; right:22px; bottom:92px;
+    width:min(372px, calc(100vw - 44px));
+    height: 520px; max-height: calc(100vh - 130px);
+    background:#fff; color:#111;
+    border-radius: 14px;
+    box-shadow: 0 18px 55px rgba(0,0,0,.25);
+    overflow:hidden;
+    display:none; flex-direction:column;
+    z-index:999999;
+    border: 1px solid rgba(15,23,42,.08);
+  }
+
+  .sa-header{
+    height:56px;
+    display:flex; align-items:center; gap:10px;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(15,23,42,.08);
+    background:#fff;
+  }
+  .sa-back{
+    width:28px; height:28px; border-radius:999px;
+    border:0; background:transparent; cursor:pointer;
+    display:grid; place-items:center; color:#334155;
+  }
+  .sa-back svg{ width:18px; height:18px; fill:#64748b; }
+  .sa-hgroup{ display:flex; flex-direction:column; line-height:1.1; }
+  .sa-title{ font-weight:700; font-size:14px; color:#0f172a; }
+  .sa-sub{ font-size:12px; color:#64748b; margin-top:2px; }
+  .sa-menu{
+    margin-left:auto;
+    width:32px; height:32px; border-radius:999px;
+    border:0; background:transparent; cursor:pointer;
+    display:grid; place-items:center;
+  }
+  .sa-menu svg{ width:18px; height:18px; fill:#64748b; }
+
+  .sa-body{
+    flex:1;
+    padding: 14px 12px;
+    overflow:auto;
+    background:#fff;
+    display:flex; flex-direction:column; gap:10px;
+  }
+
+  .sa-row{ display:flex; gap:8px; }
+  .sa-avatar{
+    width:26px; height:26px; border-radius:999px;
+    background: rgba(30,136,229,.12);
+    display:grid; place-items:center;
+    flex: 0 0 auto;
+    margin-top: 2px;
+  }
+  .sa-avatar svg{ width:16px; height:16px; fill: var(--sa-blue); }
+
+  .sa-bubble{
+    max-width: 78%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    background:#f8fafc;
+    color:#0f172a;
+    font-size:14px;
+    line-height:1.35;
+    white-space:pre-wrap;
+  }
+
+  .sa-me{ justify-content:flex-end; }
+  .sa-me .sa-bubble{
+    background: var(--sa-blue);
+    border-color: rgba(30,136,229,.25);
+    color:#fff;
+    border-bottom-right-radius: 6px;
+  }
+  .sa-bot .sa-bubble{
+    border-bottom-left-radius: 6px;
+  }
+
+  .sa-footer{
+    border-top: 1px solid rgba(15,23,42,.08);
+    background:#fff;
+  }
+
+  .sa-inputbar{
+    display:flex; align-items:center; gap:10px;
+    padding: 10px 10px 8px 10px;
+  }
+
+  .sa-iconbtn{
+    width:32px; height:32px; border-radius:999px;
+    border:0; background:transparent; cursor:pointer;
+    display:grid; place-items:center;
+  }
+  .sa-iconbtn svg{ width:18px; height:18px; fill:#94a3b8; }
+
+  .sa-input{
+    flex:1;
+    border:0;
+    outline:none;
+    font-size:14px;
+    color:#0f172a;
+  }
+  .sa-input::placeholder{ color:#94a3b8; }
+
+  .sa-send{
+    width:34px; height:34px; border-radius:999px;
+    border:0; cursor:pointer;
+    background: transparent;
+    display:grid; place-items:center;
+  }
+  .sa-send svg{ width:20px; height:20px; fill:#94a3b8; }
+  .sa-send.enabled svg{ fill: var(--sa-blue); }
+
+  .sa-powered{
+    padding: 0 12px 10px 12px;
+    font-size:10px;
+    color:#94a3b8;
+    display:flex; justify-content:flex-end;
+    gap:4px; align-items:center;
+  }
+  .sa-powered b{ font-weight:600; color:#64748b; }
+
+  .sa-lead{
+    padding: 10px 12px 12px 12px;
+    border-top: 1px solid rgba(15,23,42,.08);
+    background:#fff;
+    display:grid; gap:8px;
+  }
+  .sa-lead .note{ font-size:12px; color:#64748b; }
+  .sa-lead input,.sa-lead textarea{
+    width:100%;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 10px;
+    padding: 10px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  .sa-lead textarea{ min-height:64px; resize: vertical; }
+  .sa-lead button{
+    border:0; border-radius: 10px;
+    padding: 10px 10px;
+    background: var(--sa-blue);
+    color:#fff; font-weight:700; cursor:pointer;
+  }
+  .sa-status{ font-size:12px; color:#64748b; }
+
+  @media (max-width: 420px){
+    .sa-panel{ height: 78vh; }
+  }
+  `;
+  document.head.appendChild(style);
+
+  // =========================
+  // DOM
+  // =========================
+  const launcher = document.createElement("button");
+  launcher.className = "sa-launcher";
+  launcher.setAttribute("aria-label", "Open chat");
+  launcher.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h3v3.5a.5.5 0 0 0 .8.4L12.5 18H20a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 13H12l-3 2.4V16H4V5h16v11Z"/>
+    </svg>
+  `;
+
+  const panel = document.createElement("div");
+  panel.className = "sa-panel";
+  panel.innerHTML = `
+    <div class="sa-header">
+      <button class="sa-back" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M15.5 19 8.5 12l7-7 1.4 1.4L11.3 12l5.6 5.6Z"/></svg>
+      </button>
+      <div class="sa-hgroup">
+        <div class="sa-title">${BOT.headerTitle}</div>
+        <div class="sa-sub">${BOT.headerSubtitle}</div>
+      </div>
+      <button class="sa-menu" title="Menu" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path d="M5 10h2v2H5v-2Zm6 0h2v2h-2v-2Zm6 0h2v2h-2v-2Z"/></svg>
+      </button>
+    </div>
+
+    <div class="sa-body" id="sa-body"></div>
+
+    <div class="sa-footer">
+      <form class="sa-inputbar" id="sa-chat" autocomplete="off">
+        <button class="sa-iconbtn" type="button" title="Emoji (demo)" aria-label="Emoji">
+          <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm0-18a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-3 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-8 2h2a3 3 0 0 0 6 0h2a5 5 0 0 1-10 0Z"/></svg>
+        </button>
+
+        <input class="sa-input" id="sa-input" placeholder="Enter your message..." />
+        <button class="sa-send" id="sa-send" type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24"><path d="M3 20V4l19 8-19 8Zm2-3 12.9-5L5 7v3l7 2-7 2v3Z"/></svg>
+        </button>
+      </form>
+
+      <div class="sa-powered">POWERED BY <b>${BOT.poweredBy}</b></div>
+
+      <form class="sa-lead" id="sa-lead">
+        <div class="note">Need a callback? Leave your details (demo):</div>
+        <input id="sa-name" placeholder="Name" />
+        <input id="sa-email" placeholder="Email" />
+        <textarea id="sa-msg" placeholder="What do you need help with?"></textarea>
+        <button type="submit">Send</button>
+        <div class="sa-status" id="sa-status"></div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(launcher);
+  document.body.appendChild(panel);
+
+  const bodyEl = panel.querySelector("#sa-body");
+  const inputEl = panel.querySelector("#sa-input");
+  const sendBtn = panel.querySelector("#sa-send");
+  const chatForm = panel.querySelector("#sa-chat");
+  const leadForm = panel.querySelector("#sa-lead");
+  const leadStatus = panel.querySelector("#sa-status");
+  const closeBtn = panel.querySelector(".sa-back");
+
+  // Enable/disable send icon color
+  function updateSendState() {
+    const has = !!inputEl.value.trim();
+    sendBtn.classList.toggle("enabled", has);
+  }
+  inputEl.addEventListener("input", updateSendState);
+  updateSendState();
+
+  // =========================
+  // Helpers
+  // =========================
+  const MEM_KEY = "sonrisanova_ai_widget_mem_v1";
+  const mem = (() => {
+    try { return JSON.parse(localStorage.getItem(MEM_KEY) || "{}"); } catch { return {}; }
+  })();
+  mem.history ??= [];
+  mem.greeted ??= false;
+  function saveMem(){ localStorage.setItem(MEM_KEY, JSON.stringify(mem)); }
+
+  function addMessage(text, who="bot") {
+    const row = document.createElement("div");
+    row.className = "sa-row " + (who === "me" ? "sa-me" : "sa-bot");
+
+    if (who !== "me") {
+      const avatar = document.createElement("div");
+      avatar.className = "sa-avatar";
+      avatar.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg>`;
+      row.appendChild(avatar);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "sa-bubble";
+    bubble.textContent = text;
+
+    row.appendChild(bubble);
+    bodyEl.appendChild(row);
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+    return bubble;
+  }
+
+  function rulesReply(userText) {
+    const t = userText.trim().toLowerCase();
+    const wantsAppointment = t.includes("cita") || t.includes("reserv") || t.includes("appointment");
+    const emergency = t.includes("dolor") || t.includes("urg") || t.includes("inflam") || t.includes("sangr") || t.includes("fractur");
+    const prices = t.includes("precio") || t.includes("cost") || t.includes("cuánto") || t.includes("cuanto");
+    const hours = t.includes("hor") || t.includes("abiert") || t.includes("open");
+    const location = t.includes("dónde") || t.includes("donde") || t.includes("ubic") || t.includes("metro") || t.includes("direc");
+
+    if (!t) return "Tell me what you need 🙂 (cleaning, pain, orthodontics, implants…)";
+    if (t.includes("hello") || t.includes("hi") || t.includes("hola")) return "Hi! Do you want to book, check prices, or is it urgent?";
+
+    if (emergency) {
+      return "If it’s strong pain/swelling/bleeding we can often fit you in same-day. What’s your pain level (0–10), since when, and any fever or facial swelling?";
+    }
+    if (wantsAppointment) {
+      return "Perfect ✅ What day works best and morning or afternoon? Also: cleaning / checkup / pain / orthodontics?";
+    }
+    if (prices) {
+      return "Demo prices: First visit free · Cleaning 49€ · Whitening 199€ · Ortho from 39€/month. What are you interested in?";
+    }
+    if (hours) return "Hours (demo): Mon–Fri 09:00–20:00 · Sat 10:00–14:00.";
+    if (location) return "We’re in Gràcia near Joanic metro (demo). Coming by metro, bus, or car?";
+    return "Got it — tell me a bit more and I’ll guide you.";
+  }
+
+  async function aiReply(userText) {
+    // Store a small rolling context
+    mem.history.push({ role:"user", content:userText });
+    mem.history = mem.history.slice(-12);
+    saveMem();
+
+    const res = await fetch(BOT.aiEndpoint, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ message: userText, history: mem.history })
+    });
+
+    if (!res.ok) throw new Error("AI failed");
+    const data = await res.json();
+    const reply = data.reply || "";
+
+    mem.history.push({ role:"assistant", content: reply });
+    mem.history = mem.history.slice(-12);
+    saveMem();
+
+    return reply;
+  }
+
+  function toggle(open) {
+    panel.style.display = open ? "flex" : "none";
+    launcher.setAttribute("aria-label", open ? "Close chat" : "Open chat");
+
+    // Swap icon: chat ↔ X
+    launcher.innerHTML = open
+      ? `<svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M20 3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h3v3.5a.5.5 0 0 0 .8.4L12.5 18H20a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 13H12l-3 2.4V16H4V5h16v11Z"/></svg>`;
+
+    if (open && !mem.greeted) {
+      addMessage(BOT.greeting, "bot");
+      mem.greeted = true;
+      saveMem();
+    }
+  }
+
+  launcher.addEventListener("click", () => toggle(panel.style.display !== "flex"));
+  closeBtn.addEventListener("click", () => toggle(false));
+
+  // =========================
+  // Chat submit
+  // =========================
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = "";
+    updateSendState();
+
+    addMessage(text, "me");
+
+    // bot reply
+    if (BOT.mode === "ai") {
+      const bubble = addMessage("…", "bot");
+      try {
+        const reply = await aiReply(text);
+        bubble.textContent = reply || "Sorry — I didn’t get a response.";
+      } catch {
+        bubble.textContent = "AI is unavailable — falling back to basic replies.";
+        addMessage(rulesReply(text), "bot");
+      }
+    } else {
+      addMessage(rulesReply(text), "bot");
+    }
+  });
+
+  // =========================
+  // Lead capture
+  // =========================
+  leadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const lead = {
+      name: panel.querySelector("#sa-name").value.trim(),
+      email: panel.querySelector("#sa-email").value.trim(),
+      message: panel.querySelector("#sa-msg").value.trim(),
+      page: location.href,
+      ts: new Date().toISOString()
+    };
+
+    if (!lead.email) {
+      leadStatus.textContent = "Please add an email 🙂";
+      return;
+    }
+
+    try {
+      const res = await fetch(BOT.leadEndpoint, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(lead)
+      });
+      if (!res.ok) throw new Error("lead failed");
+      leadStatus.textContent = "Sent ✅ We’ll reach out soon.";
+      leadForm.reset();
+    } catch {
+      leadStatus.textContent = "Couldn’t send right now. Try again.";
+    }
+  });
+})();
